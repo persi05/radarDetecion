@@ -82,7 +82,7 @@ class RadarProc {
         List<Blob> blobs = new ArrayList<>();
         for (List<int[]> px : bm.values()) {
             int n = px.size();
-            if (n < 15) continue;
+            if (n < 10) continue;
             double mx = px.stream().mapToDouble(p -> p[0]).average().orElse(0);
             double my = px.stream().mapToDouble(p -> p[1]).average().orElse(0);
             double vx = px.stream().mapToDouble(p -> Math.pow(p[0] - mx, 2)).sum() / n;
@@ -101,11 +101,13 @@ class RadarProc {
         double dy = m.meanY - t.y;
         double dist = Math.sqrt(dx * dx + dy * dy);
 
-        if (dist < 30) return 0.9;
-        if (dist < 50) return 0.7;
-        if (dist < 80) return 0.4;
-        if (dist < 120) return 0.15;
-        return 0.05;
+        if (dist < 20) return 0.95;
+        if (dist < 40) return 0.85;
+        if (dist < 60) return 0.65;
+        if (dist < 80) return 0.40;
+        if (dist < 100) return 0.20;
+        if (dist < 120) return 0.10;
+        return 0.03;
     }
 
     public static AssociationNode buildTree(List<Blob> meas, List<Target> tgts,
@@ -115,7 +117,7 @@ class RadarProc {
             used = new HashSet<>();
         }
 
-        if (idx >= meas.size() || idx >= Math.min(meas.size(), 5)) return parent;
+        if (idx >= meas.size() || idx >= Math.min(meas.size(), 8)) return parent;
 
         Blob m = meas.get(idx);
 
@@ -125,7 +127,7 @@ class RadarProc {
         for (int i = 0; i < tgts.size(); i++) {
             if (!used.contains(i)) {
                 double p = assocProb(m, tgts.get(i));
-                if (p > 0.01) { // Próg odcięcia
+                if (p > 0.02) {
                     candidates.add(i);
                     probs.add(p);
                 }
@@ -141,7 +143,7 @@ class RadarProc {
             }
         }
 
-        int limit = Math.min(2, candidates.size());
+        int limit = Math.min(3, candidates.size());
         for (int i = 0; i < limit; i++) {
             int targetIdx = candidates.get(i);
             double prob = probs.get(i);
@@ -153,11 +155,12 @@ class RadarProc {
             buildTree(meas, tgts, idx + 1, child, newUsed);
         }
 
-        if (candidates.isEmpty() || probs.get(0) < 0.2) {
-            AssociationNode clutter = new AssociationNode(idx, null, 0.05, true);
-            parent.addChild(clutter);
-            buildTree(meas, tgts, idx + 1, clutter, new HashSet<>(used));
-        }
+        double clutterProb = 0.15;
+        if (candidates.isEmpty()) clutterProb = 0.5;
+
+        AssociationNode clutter = new AssociationNode(idx, null, clutterProb, true);
+        parent.addChild(clutter);
+        buildTree(meas, tgts, idx + 1, clutter, new HashSet<>(used));
 
         return parent;
     }
@@ -169,7 +172,7 @@ class RadarProc {
         for (Target t : tgts) {
             int cx = (int) t.x;
             int cy = (int) t.y;
-            int r = 8;
+            int r = 10;
             for (int dy = -r; dy <= r; dy++) {
                 for (int dx = -r; dx <= r; dx++) {
                     double d = Math.sqrt(dx * dx + dy * dy);
@@ -177,7 +180,7 @@ class RadarProc {
                         int x = cx + dx;
                         int y = cy + dy;
                         if (x >= 0 && x < w && y >= 0 && y < h) {
-                            int val = (int) (200 * Math.exp(-(d * d) / 18));
+                            int val = (int) (220 * Math.exp(-(d * d) / 20));
                             img[y * w + x] = Math.min(255, img[y * w + x] + val);
                         }
                     }
