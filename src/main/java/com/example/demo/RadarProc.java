@@ -99,9 +99,13 @@ class RadarProc {
     public static double assocProb(Blob m, Target t) {
         double dx = m.meanX - t.x;
         double dy = m.meanY - t.y;
-        double sx = 5 + Math.abs(t.vx) * 2;
-        double sy = 5 + Math.abs(t.vy) * 2;
-        return gauss(dx, 0, sx) * gauss(dy, 0, sy);
+        double dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist < 30) return 0.9;
+        if (dist < 50) return 0.7;
+        if (dist < 80) return 0.4;
+        if (dist < 120) return 0.15;
+        return 0.05;
     }
 
     public static AssociationNode buildTree(List<Blob> meas, List<Target> tgts,
@@ -150,7 +154,7 @@ class RadarProc {
         }
 
         if (candidates.isEmpty() || probs.get(0) < 0.2) {
-            AssociationNode clutter = new AssociationNode(idx, null, 0.1, true);
+            AssociationNode clutter = new AssociationNode(idx, null, 0.05, true);
             parent.addChild(clutter);
             buildTree(meas, tgts, idx + 1, clutter, new HashSet<>(used));
         }
